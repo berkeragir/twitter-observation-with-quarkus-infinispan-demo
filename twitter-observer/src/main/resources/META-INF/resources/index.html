@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Quarkus Hackfest Team1 - Twitter Monitoring & Analysis</title>
+    <link rel="stylesheet" type="text/css"
+          href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.59.5/css/patternfly-additions.min.css">
+    <link rel="stylesheet" type="text/css"
+          href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly-additions.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+</head>
+
+<body>
+<nav class="navbar navbar-default navbar-pf" role="navigation">
+    <div class="navbar-header">
+        <a class="navbar-brand" href="/">
+            <p><strong>Quarkus Hackfest Team1 - Twitter Monitoring & Analysis</strong></p>
+        </a>
+    </div>
+</nav>
+<div class="container">
+
+    <div id="myTweets">
+
+        <div class="row">
+            <div class="col card border-info mb-2" id="info">
+                <div class="card-body">
+                    <h2 class="card-title">Observe live Tweets for certain keywords</h2>
+                    <div class="card-text">
+                        <label>Enter the keywords you would like to observe:</label>
+                        <input class="input" v-model="searchKeywords" :disabled="searching" v-on:keyup.enter="newSearch" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="row">
+
+            <div v-for="(search, index) in searches" class="col-md-12 card border-dark text-white bg-dark mb-3" style="width: 100%;">
+
+            <div class="card-body">
+                <h2>Observing for the keywords: {{ search }} </h2>
+                <p>Number of observed tweets: {{ searchTweetArrays[index][search].length }}</p>
+
+                <div class="overflow-auto" style="width: 100%; height: 400px;">
+                    <div v-for="tweet in searchTweetArrays[index][search]" class="card text-dark bg-white mb-1 p-0">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ tweet.lang }} | {{ tweet.createdAt }}</h5>
+                            <p class="card-text">{{ tweet.text }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.59.5/js/patternfly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.20.0/axios.min.js"></script>
+
+<script type="text/javascript">
+
+    var app = new Vue({
+        el: "#myTweets",
+        data: {
+            searches: [],
+            tweetsMap: new Map(),
+            searchTweetArrays: [],
+            searchKeywords: "",
+            searching: false,
+            searchError: false,
+            connected: false,
+            tweetSocket: '',
+            searchSocket: ''
+        },
+        methods: {
+            newSearch: function() {
+
+                app.searchError = false;
+                app.searching = true;
+
+                axios.post("/rest/newSearch", this.searchKeywords)
+                .then(response => {
+                    app.searching = false;
+
+                    console.log("request successful.")
+                    
+                    this.searchKeywords = "";
+                })
+                .catch(function (error) {
+                    app.searchError = true;
+                })
+                .then(function () {
+                    app.searching = false;
+                });
+            }
+        },
+        mounted: function() {
+            if (!this.connected) {
+
+                // Didn't develop further specifically on the initiated searches themselves. 
+                // This info comes within the TweetObject data at the moment.
+                
+                /*this.searchSocket = new WebSocket("ws://" + location.host + "/searches");
+                this.searchSocket.onopen = function () {
+                    app.connected = true;
+                    console.log("Connected to twitter monitoring web socket");
+                };
+                this.searchSocket.onmessage = function (m) {
+                    if(!(m.data in app.searches)) {
+                        app.searches.push(m.data)
+                        app.searchTweetArrays.push( { [m.data]: [] } );
+                    }
+                };*/
+
+                this.tweetSocket = new WebSocket("ws://" + location.host + "/tweets");
+                this.tweetSocket.onopen = function () {
+                    app.connected = true;
+                    console.log("Connected to twitter monitoring web socket");
+                };
+                this.tweetSocket.onmessage = function (m) {
+                    var obj = JSON.parse(m.data);
+
+                    searchIndex = app.searches.indexOf(obj.keywords);
+
+                    if(searchIndex == -1) {
+                        app.searches.push(obj.keywords)
+                        app.searchTweetArrays.push( { [obj.keywords]: [] } );
+                        searchIndex = app.searches.indexOf(obj.keywords);
+                    }
+
+                    if(app.tweetsMap.has(obj.id) == false) {
+                        app.tweetsMap.set(obj.id, obj);
+                        app.searchTweetArrays[searchIndex][obj.keywords].push(obj);
+                    }
+                };
+            }
+        }
+    });
+</script>
+</body>
+
+</html>
