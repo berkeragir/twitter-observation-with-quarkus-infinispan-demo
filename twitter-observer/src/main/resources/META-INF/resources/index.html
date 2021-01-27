@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Quarkus Hackfest Team1 - Twitter Monitoring & Analysis</title>
+    <title>Sample Twitter Monitoring & Analysis</title>
     <link rel="stylesheet" type="text/css"
           href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.59.5/css/patternfly-additions.min.css">
     <link rel="stylesheet" type="text/css"
@@ -16,7 +16,7 @@
 <nav class="navbar navbar-default navbar-pf" role="navigation">
     <div class="navbar-header">
         <a class="navbar-brand" href="/">
-            <p><strong>Quarkus Hackfest Team1 - Twitter Monitoring & Analysis</strong></p>
+            <p><strong>Twitter Monitoring & Analysis</strong></p>
         </a>
     </div>
 </nav>
@@ -120,7 +120,7 @@
                     }
                 };*/
 
-                this.tweetSocket = new WebSocket("ws://" + location.host + "/tweets");
+                this.tweetSocket = new WebSocket("wss://" + location.host + "/tweets");
                 this.tweetSocket.onopen = function () {
                     app.connected = true;
                     console.log("Connected to twitter monitoring web socket");
